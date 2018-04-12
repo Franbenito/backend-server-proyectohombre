@@ -1,16 +1,14 @@
 var express = require('express');
-var bcrypt = require('bcryptjs');
-var jwt = require('jsonwebtoken');
 
 var mdAutenticacion = require('../middlewares/autenticacion');
 
 // var SEED = require('../config/config').SEED;
 
 var app = express();
-var Usuario = require('../models/usuario');
+var Club = require('../models/club');
 
 // =================================================================
-// Obtener todos los usuarios
+// Obtener todos los clubs
 // =================================================================
 
 app.get('/', (req, res, next) => {
@@ -18,33 +16,39 @@ app.get('/', (req, res, next) => {
     var desde = req.query.desde || 0;
     desde = Number(desde);
 
-    Usuario.find({}, 'nombre email role img)')
+    Club.find({})
         .skip(desde)
         .limit(5)
+        .populate('usuario', 'nombre email')
         .exec(
-            (err, usuarios) => {
+            (err, clubs) => {
 
                 if (err) {
                     return res.status(200).json({
                         ok: false,
-                        mensaje: 'Error cargando usuario!',
+                        mensaje: 'Error cargando club!',
                         errors: err
                     });
                 }
 
-                Usuario.count({}, (err, conteo) => {
+                Club.count({}, (err, conteo) => {
 
                     res.status(200).json({
                         ok: true,
-                        usuarios: usuarios,
+                        clubs: clubs,
                         total: conteo
                     });
+
                 });
+
+
             });
 });
 
+
+
 // =================================================================
-// Actualizar usuario
+// Actualizar club
 // =================================================================
 
 app.put('/:id', mdAutenticacion.verificaToken, (req, res) => {
@@ -52,43 +56,40 @@ app.put('/:id', mdAutenticacion.verificaToken, (req, res) => {
     var id = req.params.id;
     var body = req.body;
 
-    Usuario.findById(id, (err, usuario) => {
+    Club.findById(id, (err, club) => {
 
         if (err) {
             return res.status(500).json({
                 ok: false,
-                mensaje: 'Error al buscar usuario',
+                mensaje: 'Error al buscar club',
                 errors: err
             });
         }
 
-        if (!usuario) {
+        if (!club) {
             return res.status(400).json({
                 ok: false,
-                mensaje: 'El usuario con el id ' + id + ' no existe',
-                errors: { message: 'No existe un usuario con ese ID' }
+                mensaje: 'El club con el id ' + id + ' no existe',
+                errors: { message: 'No existe un club con ese ID' }
             });
         }
 
-        usuario.nombre = body.nombre;
-        usuario.email = body.email;
-        usuario.role = body.role;
+        club.nombre = body.nombre;
+        club.usuario = req.usuario._id;
 
-        usuario.save((err, usuarioGuardado) => {
+        club.save((err, clubGuardado) => {
 
             if (err) {
                 return res.status(400).json({
                     ok: false,
-                    mensaje: 'Error al actualizar usuario',
+                    mensaje: 'Error al actualizar club',
                     errors: err
                 });
             }
 
-            usuarioGuardado.password = ';)';
-
             res.status(200).json({
                 ok: true,
-                usuario: usuarioGuardado
+                club: clubGuardado
             });
 
         });
@@ -100,35 +101,31 @@ app.put('/:id', mdAutenticacion.verificaToken, (req, res) => {
 
 
 // =================================================================
-// Crear un nuevo usuario
+// Crear un nuevo club
 // =================================================================
 
 app.post('/', mdAutenticacion.verificaToken, (req, res) => {
 
     var body = req.body;
 
-    var usuario = new Usuario({
+    var club = new Club({
         nombre: body.nombre,
-        email: body.email,
-        password: bcrypt.hashSync(body.password, 10),
-        img: body.img,
-        role: body.role
+        usuario: req.usuario._id
     });
 
-    usuario.save((err, usuarioGuardado) => {
+    club.save((err, clubGuardado) => {
 
         if (err) {
             return res.status(400).json({
                 ok: false,
-                mensaje: 'Error al crear usuario',
+                mensaje: 'Error al crear club',
                 errors: err
             });
         }
 
         res.status(201).json({
             ok: true,
-            usuario: usuarioGuardado,
-            usuariotoken: req.usuario
+            club: clubGuardado
         });
 
     });
@@ -137,36 +134,37 @@ app.post('/', mdAutenticacion.verificaToken, (req, res) => {
 
 
 // =================================================================
-// Borrar un usuario por el id
+// Borrar un club por el id
 // =================================================================
 app.delete('/:id', mdAutenticacion.verificaToken, (req, res) => {
 
     var id = req.params.id;
 
-    Usuario.findByIdAndRemove(id, (err, usuarioBorrado) => {
+    Club.findByIdAndRemove(id, (err, clubBorrado) => {
 
         if (err) {
             return res.status(500).json({
                 ok: false,
-                mensaje: 'Error al borrar usuario',
+                mensaje: 'Error al borrar club',
                 errors: err
             });
         }
 
-        if (!usuarioBorrado) {
+        if (!clubBorrado) {
             return res.status(400).json({
                 ok: false,
-                mensaje: 'No existe un usuario con ese id',
-                errors: { message: 'No existe un usuario con ese id' }
+                mensaje: 'No existe un club con ese id',
+                errors: { message: 'No existe un club con ese id' }
             });
         }
 
         res.status(200).json({
             ok: true,
-            usuario: usuarioBorrado
+            club: clubBorrado
         });
 
     });
 });
+
 
 module.exports = app;

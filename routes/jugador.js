@@ -1,16 +1,14 @@
 var express = require('express');
-var bcrypt = require('bcryptjs');
-var jwt = require('jsonwebtoken');
 
 var mdAutenticacion = require('../middlewares/autenticacion');
 
 // var SEED = require('../config/config').SEED;
 
 var app = express();
-var Usuario = require('../models/usuario');
+var Jugador = require('../models/jugador');
 
 // =================================================================
-// Obtener todos los usuarios
+// Obtener todos los jugadores
 // =================================================================
 
 app.get('/', (req, res, next) => {
@@ -18,33 +16,38 @@ app.get('/', (req, res, next) => {
     var desde = req.query.desde || 0;
     desde = Number(desde);
 
-    Usuario.find({}, 'nombre email role img)')
+    Jugador.find({})
         .skip(desde)
         .limit(5)
+        .populate('usuario', 'nombre email')
+        .populate('club')
         .exec(
-            (err, usuarios) => {
+            (err, jugadores) => {
 
                 if (err) {
                     return res.status(200).json({
                         ok: false,
-                        mensaje: 'Error cargando usuario!',
+                        mensaje: 'Error cargando jugador!',
                         errors: err
                     });
                 }
 
-                Usuario.count({}, (err, conteo) => {
-
+                Jugador.count({}, (err, conteo) => {
                     res.status(200).json({
                         ok: true,
-                        usuarios: usuarios,
+                        jugadores: jugadores,
                         total: conteo
                     });
                 });
+
+
             });
 });
 
+
+
 // =================================================================
-// Actualizar usuario
+// Actualizar jugador
 // =================================================================
 
 app.put('/:id', mdAutenticacion.verificaToken, (req, res) => {
@@ -52,43 +55,41 @@ app.put('/:id', mdAutenticacion.verificaToken, (req, res) => {
     var id = req.params.id;
     var body = req.body;
 
-    Usuario.findById(id, (err, usuario) => {
+    Jugador.findById(id, (err, jugador) => {
 
         if (err) {
             return res.status(500).json({
                 ok: false,
-                mensaje: 'Error al buscar usuario',
+                mensaje: 'Error al buscar jugador',
                 errors: err
             });
         }
 
-        if (!usuario) {
+        if (!jugador) {
             return res.status(400).json({
                 ok: false,
-                mensaje: 'El usuario con el id ' + id + ' no existe',
-                errors: { message: 'No existe un usuario con ese ID' }
+                mensaje: 'El jugador con el id ' + id + ' no existe',
+                errors: { message: 'No existe un jugador con ese ID' }
             });
         }
 
-        usuario.nombre = body.nombre;
-        usuario.email = body.email;
-        usuario.role = body.role;
+        jugador.nombre = body.nombre;
+        jugador.usuario = req.usuario._id;
+        jugador.club = body.club;
 
-        usuario.save((err, usuarioGuardado) => {
+        jugador.save((err, jugadorGuardado) => {
 
             if (err) {
                 return res.status(400).json({
                     ok: false,
-                    mensaje: 'Error al actualizar usuario',
+                    mensaje: 'Error al actualizar jugador',
                     errors: err
                 });
             }
 
-            usuarioGuardado.password = ';)';
-
             res.status(200).json({
                 ok: true,
-                usuario: usuarioGuardado
+                jugador: jugadorGuardado
             });
 
         });
@@ -100,35 +101,32 @@ app.put('/:id', mdAutenticacion.verificaToken, (req, res) => {
 
 
 // =================================================================
-// Crear un nuevo usuario
+// Crear un nuevo jugador
 // =================================================================
 
 app.post('/', mdAutenticacion.verificaToken, (req, res) => {
 
     var body = req.body;
 
-    var usuario = new Usuario({
+    var jugador = new Jugador({
         nombre: body.nombre,
-        email: body.email,
-        password: bcrypt.hashSync(body.password, 10),
-        img: body.img,
-        role: body.role
+        usuario: req.usuario._id,
+        club: body.club
     });
 
-    usuario.save((err, usuarioGuardado) => {
+    jugador.save((err, jugadorGuardado) => {
 
         if (err) {
             return res.status(400).json({
                 ok: false,
-                mensaje: 'Error al crear usuario',
+                mensaje: 'Error al crear jugador',
                 errors: err
             });
         }
 
         res.status(201).json({
             ok: true,
-            usuario: usuarioGuardado,
-            usuariotoken: req.usuario
+            jugador: jugadorGuardado
         });
 
     });
@@ -137,36 +135,37 @@ app.post('/', mdAutenticacion.verificaToken, (req, res) => {
 
 
 // =================================================================
-// Borrar un usuario por el id
+// Borrar un jugador por el id
 // =================================================================
 app.delete('/:id', mdAutenticacion.verificaToken, (req, res) => {
 
     var id = req.params.id;
 
-    Usuario.findByIdAndRemove(id, (err, usuarioBorrado) => {
+    Jugador.findByIdAndRemove(id, (err, jugadorBorrado) => {
 
         if (err) {
             return res.status(500).json({
                 ok: false,
-                mensaje: 'Error al borrar usuario',
+                mensaje: 'Error al borrar jugador',
                 errors: err
             });
         }
 
-        if (!usuarioBorrado) {
+        if (!jugadorBorrado) {
             return res.status(400).json({
                 ok: false,
-                mensaje: 'No existe un usuario con ese id',
-                errors: { message: 'No existe un usuario con ese id' }
+                mensaje: 'No existe un jugador con ese id',
+                errors: { message: 'No existe un jugador con ese id' }
             });
         }
 
         res.status(200).json({
             ok: true,
-            usuario: usuarioBorrado
+            jugador: jugadorBorrado
         });
 
     });
 });
+
 
 module.exports = app;
